@@ -57,7 +57,7 @@ export default function AddExercisePage() {
 
 function AddExercisePageContent() {
   const searchParams = useSearchParams();
-  const slug = searchParams.get('slug') ?? '';
+  const slug = searchParams?.get('slug') ?? '';
   const router = useRouter();
   const day = useLiveQuery(
     () => (slug
@@ -65,6 +65,14 @@ function AddExercisePageContent() {
       : Promise.resolve(undefined as PlanDay | undefined)),
     [slug]
   );
+
+  if (!slug) {
+    return (
+      <div className="px-4 pt-6 text-center text-forge-ash">
+        <p>Missing day. <Link href="/plan" className="text-forge-lime underline">Go to plan</Link></p>
+      </div>
+    );
+  }
   const exercises = useLiveQuery(() => db.exercises.orderBy('name').toArray(), []);
   const dayExercises = useLiveQuery(
     () => (day?.id

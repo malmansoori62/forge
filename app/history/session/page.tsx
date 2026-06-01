@@ -19,7 +19,7 @@ export default function HistoryDetailPage() {
 function HistoryDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const id = Number(searchParams.get('id') ?? 0);
+  const id = Number(searchParams?.get('id') ?? 0);
 
   const session = useLiveQuery(
     () => (id

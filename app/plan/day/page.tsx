@@ -20,7 +20,7 @@ export default function DayPage() {
 
 function DayPageContent() {
   const searchParams = useSearchParams();
-  const slug = searchParams.get('slug') ?? '';
+  const slug = searchParams?.get('slug') ?? '';
   const router = useRouter();
   const setActive = useSession(s => s.setActive);
 

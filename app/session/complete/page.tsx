@@ -31,7 +31,7 @@ export default function SessionCompletePage() {
 function SessionCompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const id = Number(searchParams.get('id') ?? 0);
+  const id = Number(searchParams?.get('id') ?? 0);
 
   const session = useLiveQuery(
     () => (id

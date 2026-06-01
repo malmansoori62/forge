@@ -19,7 +19,7 @@ export default function ExerciseProgressPage() {
 
 function ExerciseProgressContent() {
   const searchParams = useSearchParams();
-  const slug = searchParams.get('slug') ?? '';
+  const slug = searchParams?.get('slug') ?? '';
 
   const exercise = useLiveQuery(
     () => (slug
