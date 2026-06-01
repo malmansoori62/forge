@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --forge-lime: #d4ff3f;
+  --forge-ink: #0d0f0c;
+  --forge-coal: #17191a;
+  --forge-stone: #21241f;
+}
+
+html,
+body {
+  background: var(--forge-ink);
+  color: #e9ebe5;
+  font-feature-settings: 'cv11', 'ss01', 'ss02';
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Numbers in monospace for set logger */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2c2f2a; border-radius: 3px; }
+
+/* PWA safe-area */
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
+.safe-top { padding-top: max(env(safe-area-inset-top), 0.5rem); }
+
+/* Lime ring focus */
+*:focus-visible {
+  outline: 2px solid var(--forge-lime);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
