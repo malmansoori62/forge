@@ -46,33 +46,50 @@ jobs:
       - name: Install npm deps
         run: npm ci
 
-      - name: Install Capacitor
-        run: npm install --save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+      - name: Install Capacitor (pinned to v6 for CI stability)
+        run: |
+          npm install --no-save \
+            @capacitor/core@6.2.0 \
+            @capacitor/cli@6.2.0 \
+            @capacitor/android@6.2.0
+          echo "Capacitor CLI version:"
+          npx cap --version
 
       - name: Build Next.js (static export to ./out)
         run: npm run build
 
-      - name: Write capacitor.config.ts
+      - name: Verify static export
         run: |
-          cat > capacitor.config.ts <<EOF
-          import type { CapacitorConfig } from '@capacitor/cli';
+          if [ ! -d "out" ]; then
+            echo "ERROR: out/ directory was not created"
+            exit 1
+          fi
+          echo "out/ contents:"
+          ls -la out/ | head -20
+          echo "out/index.html exists: $([ -f out/index.html ] && echo yes || echo no)"
 
-          const config: CapacitorConfig = {
-            appId: '${{ inputs.package_id }}',
-            appName: '${{ inputs.app_name }}',
-            webDir: 'out',
-            android: {
-              allowMixedContent: true,
-              webContentsDebuggingEnabled: false
+      - name: Write capacitor.config.json
+        run: |
+          cat > capacitor.config.json <<EOF
+          {
+            "appId": "${{ inputs.package_id }}",
+            "appName": "${{ inputs.app_name }}",
+            "webDir": "out",
+            "android": {
+              "allowMixedContent": true,
+              "webContentsDebuggingEnabled": false
             }
-          };
-
-          export default config;
+          }
           EOF
-          cat capacitor.config.ts
+          echo "--- capacitor.config.json ---"
+          cat capacitor.config.json
 
       - name: Add Android platform
-        run: npx cap add android
+        run: |
+          echo "Running: npx cap add android"
+          npx cap add android 2>&1
+          echo "--- android/ created ---"
+          ls -la android/ | head -10
 
       - name: Sync web assets into Android project
         run: npx cap sync android
