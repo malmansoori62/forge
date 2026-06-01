@@ -1,32 +1,23 @@
 name: Build Android APK
 
-# Manually trigger this workflow from the Actions tab to build a TWA-wrapped
-# APK pointing at your deployed PWA. The APK is uploaded as an artifact you
-# can download. To install: enable "Install unknown apps" on your phone,
-# transfer the APK, and install it.
+# Bundles the entire FORGE web app inside an Android APK via Capacitor.
+# No hosting needed — the app runs fully offline once installed.
 #
-# REQUIRED: deploy the PWA somewhere public first (Vercel is free and fast):
-#   1. Sign in at vercel.com with GitHub
-#   2. Import this repo, accept the Next.js defaults, deploy
-#   3. Copy the resulting URL (e.g. https://forge-xyz.vercel.app)
-#   4. Run this workflow with that URL as input
+# To build: Actions tab -> "Build Android APK" -> Run workflow.
+# Download the APK from the workflow's Artifacts when it completes.
 
 on:
   workflow_dispatch:
     inputs:
-      pwa_url:
-        description: 'Deployed PWA URL (e.g. https://forge-xyz.vercel.app)'
-        required: true
-        type: string
-      package_id:
-        description: 'Android package id (reverse-DNS, must be unique)'
-        required: false
-        default: 'com.malmansoori.forge'
-        type: string
       app_name:
-        description: 'App name shown on phone'
+        description: 'App name shown on the phone'
         required: false
         default: 'FORGE'
+        type: string
+      package_id:
+        description: 'Android package id (reverse-DNS, must be unique to your app)'
+        required: false
+        default: 'com.malmansoori.forge'
         type: string
 
 jobs:
@@ -52,122 +43,79 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli@latest
+      - name: Install npm deps
+        run: npm ci
 
-      - name: Generate signing keystore
-        run: |
-          keytool -genkey -v \
-            -keystore android.keystore \
-            -alias forge \
-            -keyalg RSA -keysize 2048 \
-            -validity 10000 \
-            -storepass forgeapp -keypass forgeapp \
-            -dname "CN=FORGE, OU=Personal, O=FORGE, L=Unknown, ST=Unknown, C=US"
-          echo "--- Keystore SHA-256 fingerprint ---"
-          keytool -list -v -keystore android.keystore -storepass forgeapp -alias forge \
-            | grep "SHA256:" | head -1
+      - name: Install Capacitor
+        run: npm install --save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
 
-      - name: Write twa-manifest.json
+      - name: Build Next.js (static export to ./out)
+        run: npm run build
+
+      - name: Write capacitor.config.ts
         run: |
-          cat > twa-manifest.json <<EOF
-          {
-            "packageId": "${{ inputs.package_id }}",
-            "host": "$(echo '${{ inputs.pwa_url }}' | sed -E 's|^https?://||' | sed 's|/.*||')",
-            "name": "${{ inputs.app_name }}",
-            "launcherName": "${{ inputs.app_name }}",
-            "display": "standalone",
-            "themeColor": "#0d0f0c",
-            "navigationColor": "#0d0f0c",
-            "navigationColorDark": "#0d0f0c",
-            "navigationDividerColor": "#0d0f0c",
-            "navigationDividerColorDark": "#0d0f0c",
-            "backgroundColor": "#0d0f0c",
-            "enableNotifications": true,
-            "startUrl": "/",
-            "iconUrl": "${{ inputs.pwa_url }}/icons/icon-512.png",
-            "maskableIconUrl": "${{ inputs.pwa_url }}/icons/icon-512.png",
-            "appVersionName": "1.0.0",
-            "appVersion": 1,
-            "shortcuts": [],
-            "signingKey": {
-              "path": "./android.keystore",
-              "alias": "forge"
-            },
-            "splashScreenFadeOutDuration": 300,
-            "generatorApp": "bubblewrap-cli",
-            "webManifestUrl": "${{ inputs.pwa_url }}/manifest.webmanifest",
-            "fallbackType": "customtabs",
-            "features": {},
-            "alphaDependencies": { "enabled": false },
-            "enableSiteSettingsShortcut": true,
-            "isChromeOSOnly": false,
-            "isMetaQuest": false,
-            "fullScopeUrl": "${{ inputs.pwa_url }}/",
-            "minSdkVersion": 21,
-            "orientation": "portrait"
-          }
+          cat > capacitor.config.ts <<EOF
+          import type { CapacitorConfig } from '@capacitor/cli';
+
+          const config: CapacitorConfig = {
+            appId: '${{ inputs.package_id }}',
+            appName: '${{ inputs.app_name }}',
+            webDir: 'out',
+            android: {
+              allowMixedContent: true,
+              webContentsDebuggingEnabled: false
+            }
+          };
+
+          export default config;
           EOF
-          cat twa-manifest.json
+          cat capacitor.config.ts
 
-      - name: Initialize Bubblewrap project from manifest file
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync web assets into Android project
+        run: npx cap sync android
+
+      - name: Copy launcher icons from public/icons
         run: |
-          mkdir -p ./android-build
-          cp twa-manifest.json ./android-build/twa-manifest.json
-          cp android.keystore ./android-build/android.keystore
-          cd ./android-build
-          # Generate Android project files from the manifest
-          bubblewrap update --skipVersionUpgrade || true
-          # If update fails (no prior project), do init with --skipPwaValidation
-          if [ ! -f "build.gradle" ]; then
-            bubblewrap init \
-              --manifest="${{ inputs.pwa_url }}/manifest.webmanifest" \
-              --directory=. \
-              --skipPwaValidation || true
-          fi
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_RES=android/app/src/main/res
+          # Copy 512 to all mipmap densities as a baseline (Capacitor will scale)
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p "$ANDROID_RES/$d"
+            cp public/icons/icon-192.png "$ANDROID_RES/$d/ic_launcher.png" 2>/dev/null || true
+            cp public/icons/icon-192.png "$ANDROID_RES/$d/ic_launcher_round.png" 2>/dev/null || true
+            cp public/icons/icon-512.png "$ANDROID_RES/$d/ic_launcher_foreground.png" 2>/dev/null || true
+          done
 
-      - name: Build APK
-        working-directory: ./android-build
+      - name: Build debug APK
+        working-directory: ./android
         run: |
-          bubblewrap build --skipPwaValidation
-          ls -la *.apk *.aab 2>/dev/null || true
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          JAVA_HOME: ${{ env.JAVA_HOME }}
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+          ls -la app/build/outputs/apk/debug/
 
-      - name: Locate built APK
-        id: apk
-        run: |
-          APK=$(find ./android-build -name "*.apk" | head -1)
-          echo "Found APK: $APK"
-          echo "apk_path=$APK" >> $GITHUB_OUTPUT
-
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: forge-android-apk
-          path: |
-            ./android-build/*.apk
-            ./android-build/*.aab
-          if-no-files-found: warn
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
           retention-days: 30
 
       - name: Print install instructions
         run: |
           echo "================================================================"
-          echo "APK build complete."
+          echo "APK built successfully — no hosting required."
           echo ""
-          echo "Download it from the workflow's Artifacts (top of this page)."
+          echo "Download forge-android-apk from this workflow's Artifacts."
           echo ""
           echo "To install on your phone:"
-          echo "  1. Settings -> Apps -> Special access -> Install unknown apps"
-          echo "     Enable it for your file manager / Chrome / wherever you'll open the APK"
-          echo "  2. Transfer the APK to your phone (USB, Drive, email)"
-          echo "  3. Tap the APK file -> Install"
+          echo "  1. Transfer the APK to your phone (USB, Drive, email)"
+          echo "  2. Tap the APK file"
+          echo "  3. Allow 'Install unknown apps' if prompted"
+          echo "  4. Open the FORGE icon from your launcher"
           echo ""
-          echo "Note: Without Digital Asset Links between your hosted PWA and the"
-          echo "APK signing key, the TWA may show a URL bar at the top. For a"
-          echo "fully chromeless experience, see BUILD_APK.md for asset-links setup."
+          echo "The entire app and all its plans/exercises run inside the APK."
+          echo "No internet needed after install."
           echo "================================================================"

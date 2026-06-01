@@ -31,7 +31,7 @@ export default function Heatmap() {
 
   function tap(c: { ts: number; sessions: { id: number; ts: number }[] }) {
     if (c.sessions.length === 0) return;
-    if (c.sessions.length === 1) router.push(`/history/${c.sessions[0].id}`);
+    if (c.sessions.length === 1) router.push(`/history/session?id=${c.sessions[0].id}`);
     else router.push('/history');
   }
 

@@ -1,13 +1,13 @@
 'use client';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/db';
 import { compressImageToDataURL } from '@/lib/utils';
 import { ArrowLeft, Search, Plus, ImagePlus, X, Wand2, Trash2, Camera } from 'lucide-react';
 import ExerciseImage from '@/components/ExerciseImage';
-import type { Exercise, Muscle, MovementPattern, Equipment, DayExercise } from '@/lib/types';
+import type { Exercise, Muscle, MovementPattern, Equipment, DayExercise, PlanDay } from '@/lib/types';
 
 const MUSCLES: { key: Muscle; label: string; pattern: MovementPattern }[] = [
   { key: 'chest', label: 'Chest', pattern: 'horizontal-push' },
@@ -47,10 +47,24 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-export default function AddExercisePage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default function AddExercisePage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-forge-ash">Loading…</div>}>
+      <AddExercisePageContent />
+    </Suspense>
+  );
+}
+
+function AddExercisePageContent() {
+  const searchParams = useSearchParams();
+  const slug = searchParams.get('slug') ?? '';
   const router = useRouter();
-  const day = useLiveQuery(() => db.days.where('slug').equals(slug).first(), [slug]);
+  const day = useLiveQuery(
+    () => (slug
+      ? db.days.where('slug').equals(slug).first()
+      : Promise.resolve(undefined as PlanDay | undefined)),
+    [slug]
+  );
   const exercises = useLiveQuery(() => db.exercises.orderBy('name').toArray(), []);
   const dayExercises = useLiveQuery(
     () => (day?.id
@@ -107,7 +121,7 @@ export default function AddExercisePage({ params }: { params: { slug: string } }
       targetRepsMax: 12,
       targetRIR: 1
     });
-    router.push(`/plan/${slug}`);
+    router.push(`/plan/day?slug=${slug}`);
   }
 
   async function deleteCustomExercise(ex: Exercise) {
@@ -122,7 +136,7 @@ export default function AddExercisePage({ params }: { params: { slug: string } }
   return (
     <div className="px-4 pt-4 pb-2 space-y-3">
       <header className="flex items-center gap-2">
-        <Link href={`/plan/${slug}`} className="p-2 -m-2 text-forge-ash"><ArrowLeft className="w-5 h-5" /></Link>
+        <Link href={`/plan/day?slug=${slug}`} className="p-2 -m-2 text-forge-ash"><ArrowLeft className="w-5 h-5" /></Link>
         <h1 className="text-xl font-bold flex-1">Add exercise</h1>
         <button
           onClick={() => setCreating(c => !c)}

@@ -1,18 +1,32 @@
 'use client';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import { db } from '@/lib/db';
-import type { PlanDay } from '@/lib/types';
-import { formatDate, formatDateTime, formatTime, formatTimeOfDay, e1RM } from '@/lib/utils';
+import type { PlanDay, Session, WorkingSet } from '@/lib/types';
+import { formatDateTime, formatTime, formatTimeOfDay, e1RM } from '@/lib/utils';
 import { ArrowLeft, Calendar, Clock, Trophy, Flame, NotebookPen, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function HistoryDetailPage({ params }: { params: { id: string } }) {
+export default function HistoryDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-6 animate-pulse text-forge-ash">Loading…</div>}>
+      <HistoryDetailContent />
+    </Suspense>
+  );
+}
+
+function HistoryDetailContent() {
   const router = useRouter();
-  const id = Number(params.id);
+  const searchParams = useSearchParams();
+  const id = Number(searchParams.get('id') ?? 0);
 
-  const session = useLiveQuery(() => db.sessions.get(id), [id]);
+  const session = useLiveQuery(
+    () => (id
+      ? db.sessions.get(id)
+      : Promise.resolve(undefined as Session | undefined)),
+    [id]
+  );
   const day = useLiveQuery(
     () => (session?.dayId
       ? db.days.get(session.dayId)
@@ -20,7 +34,9 @@ export default function HistoryDetailPage({ params }: { params: { id: string } }
     [session?.dayId]
   );
   const sets = useLiveQuery(
-    () => db.sets.where('sessionId').equals(id).sortBy('loggedAt'),
+    () => (id
+      ? db.sets.where('sessionId').equals(id).sortBy('loggedAt')
+      : Promise.resolve([] as WorkingSet[])),
     [id]
   );
   const exercises = useLiveQuery(() => db.exercises.toArray(), []);
@@ -110,7 +126,7 @@ export default function HistoryDetailPage({ params }: { params: { id: string } }
           return (
             <div key={g.slug} className="rounded-xl bg-forge-coal border border-forge-stone p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
-                <Link href={`/progress/${g.slug}`} className="font-bold truncate flex-1 hover:text-forge-lime">
+                <Link href={`/progress/exercise?slug=${g.slug}`} className="font-bold truncate flex-1 hover:text-forge-lime">
                   {g.name}
                 </Link>
                 {top && (

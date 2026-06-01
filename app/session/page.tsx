@@ -119,7 +119,7 @@ export default function SessionPage() {
     const finishedId = activeSessionId;
     await db.sessions.update(finishedId, { endedAt: Date.now(), note: noteText || undefined });
     clearActive();
-    router.push(`/session/complete/${finishedId}`);
+    router.push(`/session/complete?id=${finishedId}`);
   }
 
   async function saveNote() {

@@ -215,7 +215,7 @@ export default function CalendarPage() {
                 return (
                   <Link
                     key={s.id}
-                    href={`/history/${s.id}`}
+                    href={`/history/session?id=${s.id}`}
                     className="block px-3 py-2.5 active:bg-forge-stone/50"
                   >
                     <div className="flex items-center gap-2">

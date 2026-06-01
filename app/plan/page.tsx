@@ -58,7 +58,7 @@ export default function PlanPage() {
             return (
               <Link
                 key={d.id}
-                href={`/plan/${d.slug}`}
+                href={`/plan/day?slug=${d.slug}`}
                 className="group rounded-2xl bg-forge-coal border border-forge-stone overflow-hidden active:scale-[0.98] transition"
               >
                 <ExerciseImage src={d.illustration} alt={d.name} className="w-full aspect-square" />

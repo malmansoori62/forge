@@ -111,7 +111,7 @@ export default function EditPlanPage() {
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button onClick={() => renameDay(d.id!, d.name)} className="text-xs px-2 py-1 rounded bg-forge-stone text-forge-bone">Rename</button>
-              <Link href={`/plan/${d.slug}`} className="text-xs px-2 py-1 rounded bg-forge-stone text-forge-bone">Edit</Link>
+              <Link href={`/plan/day?slug=${d.slug}`} className="text-xs px-2 py-1 rounded bg-forge-stone text-forge-bone">Edit</Link>
               <button onClick={() => deleteDay(d.id!)} className="text-xs p-1 rounded bg-red-900/40 text-red-300">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

@@ -1,21 +1,35 @@
 'use client';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { DayExercise } from '@/lib/types';
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Repeat, Plus, GripVertical, Trash2 } from 'lucide-react';
+import type { DayExercise, PlanDay } from '@/lib/types';
+import { Suspense, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Play, Repeat, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import ExerciseImage from '@/components/ExerciseImage';
 import SwapSheet from '@/components/SwapSheet';
 import { useSession } from '@/lib/store';
 
-export default function DayPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default function DayPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-forge-ash">Loading day…</div>}>
+      <DayPageContent />
+    </Suspense>
+  );
+}
+
+function DayPageContent() {
+  const searchParams = useSearchParams();
+  const slug = searchParams.get('slug') ?? '';
   const router = useRouter();
   const setActive = useSession(s => s.setActive);
 
-  const day = useLiveQuery(() => db.days.where('slug').equals(slug).first(), [slug]);
+  const day = useLiveQuery(
+    () => (slug
+      ? db.days.where('slug').equals(slug).first()
+      : Promise.resolve(undefined as PlanDay | undefined)),
+    [slug]
+  );
   const dayExercises = useLiveQuery(
     () => (day?.id
       ? db.dayExercises.where('dayId').equals(day.id).sortBy('order')
@@ -99,14 +113,13 @@ export default function DayPage({ params }: { params: { slug: string } }) {
 
       <div className="px-4 mt-3">
         <Link
-          href={`/plan/${slug}/add`}
+          href={`/plan/day/add?slug=${slug}`}
           className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-forge-stone text-forge-ash py-3 hover:border-forge-lime/50 hover:text-forge-lime transition"
         >
           <Plus className="w-4 h-4" /> Add exercise
         </Link>
       </div>
 
-      {/* Floating START button */}
       <div className="fixed bottom-20 inset-x-0 px-4 z-20">
         <div className="mx-auto max-w-md">
           <button

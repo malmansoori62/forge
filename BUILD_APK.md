@@ -1,102 +1,59 @@
 # Build FORGE as an Android APK
 
-The repo includes a GitHub Actions workflow (`.github/workflows/build-apk.yml`)
-that wraps the deployed PWA into a signed Android TWA `.apk` you can sideload
-onto your phone.
+The repo includes a GitHub Actions workflow that builds an Android APK with
+the entire FORGE web app bundled inside it — **no hosting required**. The
+APK runs fully offline.
 
-## One-time setup
+## How to get an APK
 
-### 1. Deploy the PWA somewhere public (free)
-
-The APK is just a thin Android wrapper that loads your hosted PWA. You need
-the PWA available at a public HTTPS URL first.
-
-**Easiest: Vercel** (free, takes ~3 minutes)
-
-1. Go to <https://vercel.com> and sign in with GitHub
-2. Click **Add New → Project** → select the `forge` repo
-3. Accept the Next.js defaults (no env vars needed)
-4. Click **Deploy** — wait ~60 seconds
-5. Copy the deployment URL — it'll look like `https://forge-xyz.vercel.app`
-
-That URL is now your live FORGE PWA. You can already install it from Chrome's
-"Add to home screen" if you want to skip the APK step entirely.
-
-### 2. (Optional) Set up Digital Asset Links
-
-Without this, the TWA APK will show a small URL bar at the top of the screen.
-With it, the app is fully chromeless and feels native. Skip this if you don't
-care about the URL bar.
-
-After the first APK build runs, look at the workflow log under
-**"Generate signing keystore"** — you'll see a line like:
-
-```
-SHA256: A1:B2:C3:...:FF
-```
-
-Copy that fingerprint. Then create a file in the repo at
-`public/.well-known/assetlinks.json`:
-
-```json
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.malmansoori.forge",
-    "sha256_cert_fingerprints": ["A1:B2:C3:...:FF"]
-  }
-}]
-```
-
-Replace the fingerprint with yours. Commit + push. Vercel redeploys
-automatically. Now `https://forge-xyz.vercel.app/.well-known/assetlinks.json`
-returns it, and the next APK build will produce a chromeless TWA.
-
-## Building the APK
-
-Every time you want a fresh APK:
-
-1. Go to the repo on GitHub → **Actions** tab
+1. Go to <https://github.com/malmansoori62/forge> → **Actions** tab
 2. Click **"Build Android APK"** in the left sidebar
-3. Click **"Run workflow"** (top right)
-4. Fill in:
-   - **Deployed PWA URL**: `https://forge-xyz.vercel.app` (no trailing slash)
-   - **Package ID**: leave as default or pick your own reverse-DNS
-   - **App name**: leave as `FORGE` or change
-5. Click the green **Run workflow** button
-6. Wait ~5–10 minutes for the build to finish (you'll see a green check)
-7. Click into the completed run → scroll to **Artifacts** at the bottom
-8. Download `forge-android-apk.zip` → unzip → you have the `.apk` file
+3. Click **"Run workflow"** (top right of that panel)
+4. Leave the defaults (or change the app name / package id) → click the green **Run workflow** button
+5. Wait ~5–10 minutes for the green check
+6. Click into the finished run → scroll to **Artifacts** at the bottom
+7. Download `forge-android-apk` → unzip → you have `app-debug.apk`
 
-## Installing on your phone
+## Install on your Android phone
 
-1. Transfer the `.apk` to your phone (USB cable, Google Drive, email — anything)
-2. On Android, go to **Settings → Apps → Special access → Install unknown apps**
-3. Pick whichever app you'll open the APK with (Files, Drive, Chrome) and
-   toggle **Allow from this source**
-4. Tap the APK file → **Install** → **Open**
-5. The FORGE icon appears in your app drawer and on your home screen
+1. Transfer the `.apk` to your phone (USB cable, Google Drive, WhatsApp, email — anything)
+2. On Android, tap the file
+3. If prompted, allow **"Install unknown apps"** for whichever app you opened the APK with
+4. Tap **Install** → **Open** → FORGE icon shows up in your app drawer and home screen
 
-## Updating later
+## Updates
 
-For app updates: just bump the version in the workflow inputs (or re-run with
-the same URL after pushing changes to the repo + redeploying Vercel) → the new
-APK overwrites the old one on install.
+When you push code changes to the repo:
 
-For PWA updates that don't change the wrapper: just push to the repo, Vercel
-auto-deploys, and the next time you open the app on your phone it pulls the
-new web content automatically. **You don't need to rebuild the APK for web
-content changes** — only for things like the app name, icon, or package ID.
+1. Re-run the workflow
+2. Download the new APK
+3. Install over the old one (data is preserved — IndexedDB stays in app sandbox)
+
+## What you get
+
+- Full FORGE app inside the APK — all 16 plans, 100+ exercises, coach notes, rest timer with voice cues, history, calendar, training max, the whole thing
+- Works fully offline. No Vercel, no GitHub Pages, no external hosting
+- Your custom 100.png logo as the launcher icon
+- IndexedDB stays inside the app sandbox — your workout data is safe across app updates
 
 ## Troubleshooting
 
-- **Build fails on "bubblewrap build"**: usually means the PWA manifest at
-  `<your-url>/manifest.webmanifest` isn't reachable. Open that URL in a
-  browser — you should see JSON. If you get a 404, your Vercel deployment
-  hasn't picked up the manifest yet (try a redeploy).
-- **APK installs but shows a URL bar**: that's the asset-links thing —
-  see step 2 above to remove it.
-- **"App not installed" on the phone**: usually means an older FORGE APK
-  with a different signing key is already installed. Uninstall the old one
-  first, then install the new APK.
+- **Build fails on `npm ci`**: usually means `package-lock.json` is out of sync. Push again or delete it locally and rerun `npm install`.
+- **Build fails on `cap add android`**: Capacitor needs `capacitor.config.ts` to exist (the workflow creates it) and `out/` to be present (the workflow builds it).
+- **APK installs but app is blank**: open Chrome on the phone, visit `chrome://inspect`, connect to USB-debug the device — usually a JS error from a path mismatch.
+- **"App not installed" error**: a previous FORGE APK signed with a different key is already installed. Uninstall it first, then install the new APK.
+
+## Local build (if you want)
+
+```bash
+npm install
+npm install --save @capacitor/core @capacitor/cli @capacitor/android
+npm run build              # outputs to ./out
+# Create capacitor.config.ts manually with webDir: 'out'
+npx cap add android
+npx cap sync android
+cd android && ./gradlew assembleDebug
+# APK is at: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Requires Android SDK + JDK 17 installed locally.

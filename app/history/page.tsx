@@ -76,7 +76,7 @@ export default function HistoryPage() {
           return (
             <Link
               key={s.id}
-              href={`/history/${s.id}`}
+              href={`/history/session?id=${s.id}`}
               className="block rounded-xl bg-forge-coal border border-forge-stone p-3 active:scale-[0.99] transition"
             >
               <div className="flex items-start gap-3">

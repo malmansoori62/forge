@@ -130,7 +130,7 @@ export default function ProgressPage() {
           {exerciseStats.map(stat => (
             <Link
               key={stat.slug}
-              href={`/progress/${stat.slug}`}
+              href={`/progress/exercise?slug=${stat.slug}`}
               className="flex items-center gap-3 rounded-xl bg-forge-coal border border-forge-stone p-3 active:scale-[0.99]"
             >
               <TrendingUp className="w-4 h-4 text-forge-lime" />

@@ -1,17 +1,38 @@
 'use client';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/db';
+import type { WorkingSet, Exercise } from '@/lib/types';
 import { e1RM, formatDate } from '@/lib/utils';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import { ArrowLeft, Trophy } from 'lucide-react';
 
-export default function ExerciseProgressPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default function ExerciseProgressPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-forge-ash animate-pulse">Loading…</div>}>
+      <ExerciseProgressContent />
+    </Suspense>
+  );
+}
 
-  const exercise = useLiveQuery(() => db.exercises.where('slug').equals(slug).first(), [slug]);
-  const sets = useLiveQuery(() => db.sets.where('exerciseSlug').equals(slug).sortBy('loggedAt'), [slug]);
+function ExerciseProgressContent() {
+  const searchParams = useSearchParams();
+  const slug = searchParams.get('slug') ?? '';
+
+  const exercise = useLiveQuery(
+    () => (slug
+      ? db.exercises.where('slug').equals(slug).first()
+      : Promise.resolve(undefined as Exercise | undefined)),
+    [slug]
+  );
+  const sets = useLiveQuery(
+    () => (slug
+      ? db.sets.where('exerciseSlug').equals(slug).sortBy('loggedAt')
+      : Promise.resolve([] as WorkingSet[])),
+    [slug]
+  );
 
   const sessionStats = useMemo(() => {
     if (!sets) return [];
@@ -35,7 +56,6 @@ export default function ExerciseProgressPage({ params }: { params: { slug: strin
   }, [sets]);
 
   const bestE1RM = useMemo(() => Math.max(0, ...sessionStats.map(s => s.e1RM)), [sessionStats]);
-  const prSet = useMemo(() => sets?.find(s => s.isPR && e1RM(s.weight, s.reps) >= bestE1RM - 0.01), [sets, bestE1RM]);
 
   if (!exercise) return <div className="p-6 text-forge-ash animate-pulse">Loading…</div>;
 

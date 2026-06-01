@@ -92,7 +92,7 @@ export default function HomePage() {
               {recent.map(d => (
                 <Link
                   key={d.id}
-                  href={`/plan/${d.slug}`}
+                  href={`/plan/day?slug=${d.slug}`}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-forge-coal border border-forge-stone px-3 py-1.5 text-xs font-semibold hover:border-forge-lime/50 active:scale-95 transition"
                 >
                   <Play className="w-3 h-3 text-forge-lime fill-current" />
@@ -108,7 +108,7 @@ export default function HomePage() {
       {/* Today recommended */}
       {recommended && (
         <Link
-          href={`/plan/${recommended.slug}`}
+          href={`/plan/day?slug=${recommended.slug}`}
           className="block rounded-2xl bg-gradient-to-br from-forge-lime/15 to-forge-coal border border-forge-lime/30 shadow-glow overflow-hidden"
         >
           <div className="p-4">
@@ -157,7 +157,7 @@ export default function HomePage() {
         <h3 className="text-xs uppercase tracking-wider text-forge-ash mb-2 px-1">All days</h3>
         <div className="space-y-2">
           {days.map(d => (
-            <Link key={d.id} href={`/plan/${d.slug}`}
+            <Link key={d.id} href={`/plan/day?slug=${d.slug}`}
               className="flex items-center gap-3 rounded-xl bg-forge-coal border border-forge-stone p-3 active:scale-[0.99] transition">
               <ExerciseImage src={d.illustration} alt={d.name} className="w-12 h-12" />
               <div className="flex-1 min-w-0">

@@ -1,11 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { db } from '@/lib/db';
 import { analyzeSession, type CoachFeedback } from '@/lib/postWorkoutCoach';
-import type { PlanDay, WorkingSet } from '@/lib/types';
+import type { PlanDay, Session, WorkingSet } from '@/lib/types';
 import { formatTime, formatDateTime } from '@/lib/utils';
 import {
   CheckCircle2, Trophy, Activity, Clock, Dumbbell, Sparkles,
@@ -20,12 +20,31 @@ const FEELINGS: { v: 1 | 2 | 3 | 4 | 5; emoji: string; label: string }[] = [
   { v: 5, emoji: '🔥', label: 'Crushed it' }
 ];
 
-export default function SessionCompletePage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const id = Number(params.id);
+export default function SessionCompletePage() {
+  return (
+    <Suspense fallback={<div className="p-6 animate-pulse text-forge-ash">Loading summary…</div>}>
+      <SessionCompleteContent />
+    </Suspense>
+  );
+}
 
-  const session = useLiveQuery(() => db.sessions.get(id), [id]);
-  const sets = useLiveQuery(() => db.sets.where('sessionId').equals(id).toArray(), [id]);
+function SessionCompleteContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = Number(searchParams.get('id') ?? 0);
+
+  const session = useLiveQuery(
+    () => (id
+      ? db.sessions.get(id)
+      : Promise.resolve(undefined as Session | undefined)),
+    [id]
+  );
+  const sets = useLiveQuery(
+    () => (id
+      ? db.sets.where('sessionId').equals(id).toArray()
+      : Promise.resolve([] as WorkingSet[])),
+    [id]
+  );
   const day = useLiveQuery(
     () => (session?.dayId
       ? db.days.get(session.dayId)
@@ -34,7 +53,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
   );
   const exercises = useLiveQuery(() => db.exercises.toArray(), []);
 
-  // Pull every previous logged set for the exercises in this session, for diff analysis.
   const sessionSlugs = useMemo(() => new Set((sets ?? []).map(s => s.exerciseSlug)), [sets]);
   const historicalSets = useLiveQuery(async () => {
     const m = new Map<string, any[]>();
@@ -64,7 +82,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
 
   return (
     <div className="px-4 pt-6 pb-8 space-y-5">
-      {/* Hero */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-forge-lime/15 border-2 border-forge-lime">
           <CheckCircle2 className="w-9 h-9 text-forge-lime" />
@@ -76,7 +93,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
         </p>
       </div>
 
-      {/* Headline stats */}
       <div className="grid grid-cols-4 gap-2">
         <Stat icon={<Clock className="w-3 h-3" />} label="Time" value={formatTime(analysis.durationSec)} />
         <Stat icon={<Dumbbell className="w-3 h-3" />} label="Sets" value={analysis.workingSets.toString()} />
@@ -84,7 +100,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
         <Stat icon={<Trophy className="w-3 h-3" />} label="PRs" value={analysis.prCount.toString()} accent={analysis.prCount > 0} />
       </div>
 
-      {/* PR celebration */}
       {analysis.prCount > 0 && (
         <div className="rounded-2xl bg-gradient-to-br from-forge-lime/20 to-forge-coal border border-forge-lime/40 p-4 space-y-2">
           <div className="flex items-center gap-2">
@@ -101,7 +116,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
         </div>
       )}
 
-      {/* Coach feedback */}
       <section className="space-y-2">
         <h2 className="text-xs uppercase tracking-wider text-forge-lime font-bold flex items-center gap-1 px-1">
           <BookOpen className="w-3.5 h-3.5" /> Coach notes
@@ -117,7 +131,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
         </div>
       </section>
 
-      {/* Feeling rating */}
       <section className="rounded-2xl bg-forge-coal border border-forge-stone p-3 space-y-2">
         <div className="text-xs uppercase tracking-wider text-forge-ash font-bold">How did it feel?</div>
         <div className="grid grid-cols-5 gap-1.5">
@@ -141,7 +154,6 @@ export default function SessionCompletePage({ params }: { params: { id: string }
         </div>
       </section>
 
-      {/* Recovery checklist */}
       <section className="space-y-2">
         <h2 className="text-xs uppercase tracking-wider text-forge-lime font-bold flex items-center gap-1 px-1">
           <Sparkles className="w-3.5 h-3.5" /> Recovery checklist
@@ -178,10 +190,9 @@ export default function SessionCompletePage({ params }: { params: { id: string }
         </div>
       </section>
 
-      {/* Actions */}
       <div className="space-y-2 pt-2">
         <Link
-          href={`/history/${id}`}
+          href={`/history/session?id=${id}`}
           className="flex items-center justify-between rounded-xl bg-forge-coal border border-forge-stone p-3 active:scale-[0.99] transition"
         >
           <div className="flex items-center gap-2">
