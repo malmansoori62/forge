@@ -30,6 +30,10 @@ class ForgeDB extends Dexie {
       photos: '++id, takenAt, angle',
       meta: '&key'
     });
+    // v2: add `name` index on exercises so we can orderBy('name') in the picker.
+    this.version(2).stores({
+      exercises: '++id, &slug, name, pattern, *primary, custom'
+    });
   }
 }
 
