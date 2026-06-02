@@ -12,7 +12,8 @@ import RestTimer from '@/components/RestTimer';
 import SwapSheet from '@/components/SwapSheet';
 import ExerciseImage from '@/components/ExerciseImage';
 import CoachPanel from '@/components/CoachPanel';
-import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Repeat, NotebookPen, Save, Clock } from 'lucide-react';
+import AddExerciseSheet from '@/components/AddExerciseSheet';
+import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Repeat, NotebookPen, Save, Clock, Plus } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 
 export default function SessionPage() {
@@ -46,6 +47,7 @@ export default function SessionPage() {
   );
 
   const [swapFor, setSwapFor] = useState<number | null>(null);
+  const [addExOpen, setAddExOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [now, setNow] = useState(() => Date.now());
@@ -163,7 +165,7 @@ export default function SessionPage() {
         </div>
       </header>
 
-      {/* Exercise pager dots */}
+      {/* Exercise pager dots + Add */}
       <div className="flex items-center gap-1 px-4 pt-3 overflow-x-auto">
         {enriched.map((e, i) => {
           const exDone = workingLogged.filter(s => s.exerciseSlug === e.exerciseSlug).length;
@@ -181,6 +183,16 @@ export default function SessionPage() {
             </button>
           );
         })}
+        <button
+          onClick={() => setAddExOpen(true)}
+          className="flex flex-col items-center min-w-[44px] py-2 text-forge-ash hover:text-forge-lime active:text-forge-lime border-l border-forge-stone ml-1 pl-2"
+          title="Add an exercise to today"
+        >
+          <div className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center">
+            <Plus className="w-3 h-3" strokeWidth={3} />
+          </div>
+          <span className="text-[10px] mt-0.5">Add</span>
+        </button>
       </div>
 
       {/* Current exercise */}
@@ -275,6 +287,11 @@ export default function SessionPage() {
 
       <RestTimer />
       <SwapSheet dayExerciseId={swapFor} onClose={() => setSwapFor(null)} />
+      <AddExerciseSheet
+        dayId={activeDayId}
+        open={addExOpen}
+        onClose={() => setAddExOpen(false)}
+      />
 
       {noteOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 flex items-end" onClick={() => setNoteOpen(false)}>
