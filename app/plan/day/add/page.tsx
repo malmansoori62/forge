@@ -66,13 +66,6 @@ function AddExercisePageContent() {
     [slug]
   );
 
-  if (!slug) {
-    return (
-      <div className="px-4 pt-6 text-center text-forge-ash">
-        <p>Missing day. <Link href="/plan" className="text-forge-lime underline">Go to plan</Link></p>
-      </div>
-    );
-  }
   const exercises = useLiveQuery(() => db.exercises.orderBy('name').toArray(), []);
   const dayExercises = useLiveQuery(
     () => (day?.id
@@ -139,6 +132,14 @@ function AddExercisePageContent() {
       await db.dayExercises.where('exerciseSlug').equals(ex.slug).delete();
       await db.exercises.delete(ex.id!);
     });
+  }
+
+  if (!slug) {
+    return (
+      <div className="px-4 pt-6 text-center text-forge-ash">
+        <p>Missing day. <Link href="/plan" className="text-forge-lime underline">Go to plan</Link></p>
+      </div>
+    );
   }
 
   return (
@@ -250,7 +251,7 @@ function ImageThumbButton({
       <button
         onClick={() => fileRef.current?.click()}
         disabled={busy}
-        className="w-10 h-10 rounded-lg overflow-hidden bg-forge-stone flex items-center justify-center relative group disabled:opacity-50"
+        className="w-14 h-14 rounded-lg overflow-hidden bg-forge-stone flex items-center justify-center relative group disabled:opacity-50"
         title={exercise.image ? 'Replace photo' : 'Add photo'}
       >
         <ExerciseImage src={exercise.image} alt={exercise.name} className="w-full h-full" />

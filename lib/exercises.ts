@@ -1,6 +1,6 @@
 import type { Exercise } from './types';
 
-export const EXERCISE_LIBRARY: Omit<Exercise, 'id'>[] = [
+const RAW_LIBRARY: Omit<Exercise, 'id'>[] = [
   // ───────── HORIZONTAL PUSH ─────────
   {
     slug: 'bench-press', name: 'Barbell Bench Press',
@@ -688,14 +688,59 @@ export const EXERCISE_LIBRARY: Omit<Exercise, 'id'>[] = [
   }
 ];
 
+/**
+ * Slugs that have NO bundled illustration in /public/exercises.
+ * These keep the dumbbell fallback icon (see ExerciseImage).
+ */
+const NO_IMAGE = new Set(['bird-dog', 'hollow-hold', 'pendulum-squat']);
+
+/**
+ * Exercise library with default illustrations wired in. Each exercise points at
+ * a bundled image at /exercises/<slug>.jpg (public-domain Free Exercise DB,
+ * fetched via scripts/fetch-exercise-images.mjs). User-uploaded photos still
+ * win — syncExerciseLibrary keeps `image: cur.image ?? tpl.image`.
+ */
+export const EXERCISE_LIBRARY: Omit<Exercise, 'id'>[] = RAW_LIBRARY.map(e =>
+  NO_IMAGE.has(e.slug) ? e : { ...e, image: `/exercises/${e.slug}.jpg` }
+);
+
+/**
+ * Suggest alternatives that train the SAME muscles a DIFFERENT way.
+ *
+ * Ranking (high → low):
+ *   1. most shared PRIMARY muscles  (hits the same target)
+ *   2. same movement pattern        (familiar groove)
+ *   3. shared secondary muscles     (close assistance match)
+ * A small bonus goes to a *different* equipment/pattern so the list offers
+ * genuine variety (e.g. swap a barbell row for a cable or machine row).
+ *
+ * Cardio only ever swaps with other cardio.
+ */
 export function findSwaps(slug: string, all: Exercise[]): Exercise[] {
   const current = all.find(e => e.slug === slug);
   if (!current) return [];
+
+  const sharesPrimary = (e: Exercise) => e.primary.some(m => current.primary.includes(m));
+
+  const score = (e: Exercise) => {
+    const primaryOverlap = e.primary.filter(m => current.primary.includes(m)).length;
+    const secondaryOverlap =
+      e.secondary.filter(m => current.primary.includes(m)).length +
+      e.primary.filter(m => current.secondary.includes(m)).length;
+    const samePattern = e.pattern === current.pattern ? 1 : 0;
+    const differentEquip = e.equipment.some(eq => !current.equipment.includes(eq)) ? 1 : 0;
+    return primaryOverlap * 100 + samePattern * 10 + secondaryOverlap * 2 + differentEquip;
+  };
+
   return all
-    .filter(e => e.slug !== slug && e.pattern === current.pattern)
-    .sort((a, b) => {
-      const overlapA = a.primary.filter(m => current.primary.includes(m)).length;
-      const overlapB = b.primary.filter(m => current.primary.includes(m)).length;
-      return overlapB - overlapA;
-    });
+    .filter(e => {
+      if (e.slug === current.slug) return false;
+      // Cardio is its own world — never offer a squat as a treadmill alternative.
+      if (current.pattern === 'cardio' || e.pattern === 'cardio') {
+        return current.pattern === 'cardio' && e.pattern === 'cardio';
+      }
+      // Same target muscle (any pattern) OR the same movement pattern.
+      return sharesPrimary(e) || e.pattern === current.pattern;
+    })
+    .sort((a, b) => score(b) - score(a));
 }

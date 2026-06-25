@@ -68,6 +68,11 @@ export interface DayExercise {
   targetRIR: number;
   /** For cardio exercises: prescribed duration in minutes. */
   targetDurationMin?: number;
+  /**
+   * Superset id. Consecutive day-exercises sharing the same value are performed
+   * back-to-back as a superset (minimal rest between them). Undefined = solo.
+   */
+  supersetGroup?: number;
 }
 
 export interface Plan {

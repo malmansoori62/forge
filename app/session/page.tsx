@@ -2,18 +2,18 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import type { DayExercise, WorkingSet, PlanDay, Session } from '@/lib/types';
 import { useSession } from '@/lib/store';
-import { daysAgo } from '@/lib/utils';
+import { daysAgo, compressImageToDataURL } from '@/lib/utils';
 import SetLogger from '@/components/SetLogger';
 import RestTimer from '@/components/RestTimer';
 import SwapSheet from '@/components/SwapSheet';
 import ExerciseImage from '@/components/ExerciseImage';
 import CoachPanel from '@/components/CoachPanel';
 import AddExerciseSheet from '@/components/AddExerciseSheet';
-import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Repeat, NotebookPen, Save, Clock, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Repeat, NotebookPen, Save, Clock, Plus, Link2, Camera } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 
 export default function SessionPage() {
@@ -51,6 +51,7 @@ export default function SessionPage() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [now, setNow] = useState(() => Date.now());
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (session?.note) setNoteText(session.note);
@@ -61,6 +62,29 @@ export default function SessionPage() {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [session?.startedAt, session?.endedAt]);
+
+  // Keep the screen awake during a workout (released on leave / when ended).
+  useEffect(() => {
+    const nav = navigator as any;
+    if (!nav?.wakeLock) return;
+    let lock: any = null;
+    let active = true;
+    const acquire = async () => {
+      try {
+        if (active && document.visibilityState === 'visible') {
+          lock = await nav.wakeLock.request('screen');
+        }
+      } catch { /* denied or unsupported — ignore */ }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') acquire(); };
+    acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      lock?.release?.().catch(() => {});
+    };
+  }, []);
 
   const elapsedSec = session?.startedAt
     ? Math.max(0, Math.floor((now - session.startedAt) / 1000))
@@ -115,6 +139,11 @@ export default function SessionPage() {
     : 0;
   const targetRestSec = current.exercise.defaultRestSec ?? 90;
 
+  const supersetPartners = current.supersetGroup != null
+    ? enriched.filter((e, i) =>
+        i !== currentExerciseIndex && e.supersetGroup === current!.supersetGroup && e.exercise)
+    : [];
+
   async function endSession() {
     if (!activeSessionId) return;
     if (!confirm('End this session?')) return;
@@ -128,6 +157,17 @@ export default function SessionPage() {
     if (!activeSessionId) return;
     await db.sessions.update(activeSessionId, { note: noteText });
     setNoteOpen(false);
+  }
+
+  async function setCurrentExerciseImage(file: File) {
+    const exId = current?.exercise?.id;
+    if (!exId) return;
+    try {
+      const dataUrl = await compressImageToDataURL(file, 800, 0.82);
+      await db.exercises.update(exId, { image: dataUrl });
+    } catch (e: any) {
+      alert(e.message || 'Image processing failed');
+    }
   }
 
   function next() {
@@ -197,10 +237,26 @@ export default function SessionPage() {
 
       {/* Current exercise */}
       <div className="px-4 mt-2 space-y-3">
+        <button
+          type="button"
+          onClick={() => imgInputRef.current?.click()}
+          className="relative block w-full rounded-2xl overflow-hidden active:scale-[0.99] transition"
+          title="Tap to add or change this exercise's photo"
+        >
+          <ExerciseImage src={current.exercise.image} alt={current.exercise.name} className="w-full aspect-[2/1]" />
+          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-forge-ink/80 px-2.5 py-1 text-[10px] font-semibold text-forge-bone">
+            <Camera className="w-3 h-3" /> {current.exercise.image ? 'Change photo' : 'Add photo'}
+          </span>
+        </button>
+        <input
+          ref={imgInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) setCurrentExerciseImage(f); e.target.value = ''; }}
+        />
+
         <div className="flex items-start gap-3">
-          {current.exercise.image && (
-            <ExerciseImage src={current.exercise.image} alt={current.exercise.name} className="w-14 h-14 shrink-0" />
-          )}
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold leading-tight">{current.exercise.name}</h2>
             <p className="text-xs text-forge-ash mt-0.5 tabular">
@@ -215,6 +271,15 @@ export default function SessionPage() {
             <Repeat className="w-5 h-5" />
           </button>
         </div>
+
+        {supersetPartners.length > 0 && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-forge-lime/10 border border-forge-lime/30 px-3 py-1.5 text-[11px] font-semibold text-forge-lime">
+            <Link2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">
+              Superset with {supersetPartners.map(p => p.exercise!.name).join(', ')} — minimal rest between
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           {lastStats && (

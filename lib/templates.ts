@@ -953,7 +953,7 @@ export const PLAN_TEMPLATES: PlanTemplate[] = [
           { slug: 'pull-up', sets: 3, repsMin: 8, repsMax: 10, rir: 1 },
           { slug: 'ohp-barbell', sets: 4, repsMin: 8, repsMax: 10, rir: 1 },
           { slug: 'ez-bar-curl', sets: 3, repsMin: 8, repsMax: 10, rir: 1 },
-          { slug: 'hyperextension', sets: 4, repsMin: 12, repsMax: 15, rir: 1 }
+          { slug: 'sit-up', sets: 4, repsMin: 15, repsMax: 25, rir: 1 }
         ]
       }
     ]
